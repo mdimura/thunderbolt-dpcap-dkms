@@ -1,0 +1,48 @@
+SPDX-License-Identifier: GPL-2.0-only
+
+thunderbolt: Add dp_max_bw parameter to cap DP tunnel bandwidth reservation
+
+Without USB4 bandwidth allocation mode, a DP tunnel whose DPRX capability
+read is still pending is accounted at the full DP IN/OUT capability (e.g.
+HBR3 x4 = 25920 Mb/s). When two tunnels are created back to back (boot,
+dock hotplug) the second one only gets the leftovers and is reduced, e.g.
+to HBR x4 = 8640 Mb/s, which is not enough for 4K@60. The reduction is
+never revisited after the first tunnel settles at its real DPRX rate.
+
+dp_max_bw (Mb/s, 0 = no limit) caps what a single new tunnel may reserve
+so that several tunnels can share the link independently of creation order.
+
+--- a/drivers/thunderbolt/tb.c
++++ b/drivers/thunderbolt/tb.c
+@@ -43,6 +43,11 @@
+ 
+ #define MAX_GROUPS		7	/* max Group_ID is 7 */
+ 
++static int dp_max_bw;
++module_param(dp_max_bw, int, 0644);
++MODULE_PARM_DESC(dp_max_bw,
++		 "maximum bandwidth (Mb/s) a new DP tunnel may reserve, 0 = no limit (default: 0)");
++
+ static unsigned int asym_threshold = TB_ASYM_THRESHOLD;
+ module_param_named(asym_threshold, asym_threshold, uint, 0444);
+ MODULE_PARM_DESC(asym_threshold,
+@@ -2034,6 +2039,19 @@
+ 		goto err_reclaim_usb;
+ 	}
+ 
++	/*
++	 * Without bandwidth allocation mode, a tunnel whose DPRX read is
++	 * still pending is accounted at the full DP IN/OUT capability, so
++	 * a tunnel created right after it gets only the leftovers. Cap the
++	 * reservation so several tunnels can share the link fairly.
++	 */
++	if (dp_max_bw > 0) {
++		if (available_up > dp_max_bw)
++			available_up = dp_max_bw;
++		if (available_down > dp_max_bw)
++			available_down = dp_max_bw;
++	}
++
+ 	tb_dbg(tb, "available bandwidth for new DP tunnel %u/%u Mb/s\n",
+ 	       available_up, available_down);
+ 
