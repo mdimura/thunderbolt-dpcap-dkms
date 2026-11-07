@@ -5,7 +5,7 @@ A DKMS-built Linux `thunderbolt` driver with one extra module parameter,
 Two monitors on one Thunderbolt 4 / USB4 dock then share the link fairly and
 **both run at 4K@60 Hz on every boot**, whatever order the tunnels are set up in.
 
-## Symptom
+## Problem being solved
 
 - Two 4K monitors on a TB4/USB4 dock with two DP outputs.
 - After a boot (or a dock re-plug), one monitor is stuck at **4K@30 Hz**. Its
